@@ -1,0 +1,13 @@
+/* Debug styles */
+.debug-tailwind {
+  @apply text-red-500 bg-blue-200 p-4 m-4 rounded-lg;
+}
+
+/* Plain CSS as fallback */
+.debug-plain {
+  color: green;
+  background-color: yellow;
+  padding: 16px;
+  margin: 16px;
+  border-radius: 8px;
+} 
