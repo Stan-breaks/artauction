@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed": "ts-node scripts/seed.ts",
+    "seed": "ts-node --project tsconfig.json src/lib/seed.ts",
     "init-db": "ts-node scripts/init-db.ts",
     "setup": "ts-node scripts/setup.ts"
   },

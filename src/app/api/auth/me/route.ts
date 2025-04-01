@@ -1,31 +1,24 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { verifyToken } from '@/lib/auth'
 import { connectToDatabase } from '@/lib/db'
 import { User } from '@/models/User'
+import { getUserFromToken } from '@/lib/auth'
 
 export async function GET() {
   try {
-    // Get the token from cookies
-    const token = cookies().get('token')?.value
-    if (!token) {
+    const tokenData = await getUserFromToken()
+    if (!tokenData) {
       return NextResponse.json(
-        { error: 'Not authenticated' },
+        { message: 'Not authenticated' },
         { status: 401 }
       )
     }
 
-    // Verify the token
-    const decoded = verifyToken(token)
-
-    // Connect to database
     await connectToDatabase()
 
-    // Find the user
-    const user = await User.findById(decoded.userId).select('-password')
+    const user = await User.findById(tokenData.id).select('-password')
     if (!user) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { message: 'User not found' },
         { status: 404 }
       )
     }
@@ -39,9 +32,9 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error('Error in auth check:', error)
+    console.error('Get user error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     )
   }

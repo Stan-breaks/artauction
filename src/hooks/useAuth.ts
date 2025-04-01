@@ -1,88 +1,28 @@
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { fetchApi } from '@/lib/api'
+'use client'
+
+import { createContext, useContext } from 'react'
 
 interface User {
   id: string
   name: string
   email: string
-  role: string
+  role: 'USER' | 'ARTIST' | 'ADMIN'
 }
 
-interface AuthResponse {
-  user: User
+interface AuthContextType {
+  user: User | null
+  loading: boolean
+  login: (email: string, password: string) => Promise<void>
+  signup: (data: { name: string; email: string; password: string; role: 'USER' | 'ARTIST' }) => Promise<void>
+  logout: () => Promise<void>
 }
+
+export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
-
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    try {
-      const data = await fetchApi<AuthResponse>('/api/auth/me')
-      setUser(data.user)
-    } catch (error) {
-      setUser(null)
-    } finally {
-      setLoading(false)
-    }
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-
-  const login = async (email: string, password: string) => {
-    try {
-      const data = await fetchApi<AuthResponse>(
-        `/api/auth?email=${email}&password=${password}`
-      )
-      setUser(data.user)
-      router.push('/')
-    } catch (error) {
-      console.error('Login error:', error)
-      throw error
-    }
-  }
-
-  const signup = async (
-    name: string,
-    email: string,
-    password: string,
-    role: string = 'USER'
-  ) => {
-    try {
-      const data = await fetchApi<AuthResponse>('/api/auth', {
-        method: 'POST',
-        body: JSON.stringify({ name, email, password, role }),
-      })
-      setUser(data.user)
-      router.push('/')
-    } catch (error) {
-      console.error('Signup error:', error)
-      throw error
-    }
-  }
-
-  const logout = async () => {
-    try {
-      await fetchApi('/api/auth', {
-        method: 'DELETE',
-      })
-      setUser(null)
-      router.push('/auth/login')
-    } catch (error) {
-      console.error('Logout error:', error)
-      throw error
-    }
-  }
-
-  return {
-    user,
-    loading,
-    login,
-    signup,
-    logout,
-  }
-} 
+  return context
+}

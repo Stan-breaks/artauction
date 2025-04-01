@@ -3,70 +3,99 @@ import Image from 'next/image';
 
 export function Footer() {
   return (
-    <footer className="border-t bg-gray-50">
-      <div className="container py-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+    <footer className="bg-white border-t">
+      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-lg font-semibold">About ArtAuction</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              ArtAuction is a platform that connects artists with art enthusiasts,
-              making it easy to buy and sell artwork through auctions.
+            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">
+              About Art Auction
+            </h3>
+            <p className="mt-4 text-base text-gray-500">
+              A platform connecting artists with art enthusiasts through online
+              auctions. Discover unique artworks and support talented artists.
             </p>
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Quick Links</h3>
-            <ul className="mt-2 space-y-1">
+            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">
+              Quick Links
+            </h3>
+            <ul className="mt-4 space-y-4">
               <li>
                 <a
                   href="/artworks"
-                  className="text-sm text-gray-600 hover:text-primary"
+                  className="text-base text-gray-500 hover:text-gray-900"
                 >
                   Browse Artworks
                 </a>
               </li>
               <li>
                 <a
-                  href="/artworks/upload"
-                  className="text-sm text-gray-600 hover:text-primary"
-                >
-                  Upload Artwork
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/auth/login"
-                  className="text-sm text-gray-600 hover:text-primary"
-                >
-                  Login
-                </a>
-              </li>
-              <li>
-                <a
                   href="/auth/signup"
-                  className="text-sm text-gray-600 hover:text-primary"
+                  className="text-base text-gray-500 hover:text-gray-900"
                 >
-                  Sign Up
+                  Become an Artist
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/how-it-works"
+                  className="text-base text-gray-500 hover:text-gray-900"
+                >
+                  How It Works
                 </a>
               </li>
             </ul>
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Contact</h3>
-            <ul className="mt-2 space-y-1">
-              <li className="text-sm text-gray-600">
+            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">
+              Support
+            </h3>
+            <ul className="mt-4 space-y-4">
+              <li>
+                <a
+                  href="/faq"
+                  className="text-base text-gray-500 hover:text-gray-900"
+                >
+                  FAQ
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/contact"
+                  className="text-base text-gray-500 hover:text-gray-900"
+                >
+                  Contact Us
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/terms"
+                  className="text-base text-gray-500 hover:text-gray-900"
+                >
+                  Terms of Service
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">
+              Contact
+            </h3>
+            <ul className="mt-4 space-y-4">
+              <li className="text-base text-gray-500">
                 Email: support@artauction.com
               </li>
-              <li className="text-sm text-gray-600">
-                Phone: +1 (555) 123-4567
-              </li>
-              <li className="text-sm text-gray-600">
-                123 Art Street, Gallery City, AC 12345
+              <li className="text-base text-gray-500">Phone: (555) 123-4567</li>
+              <li className="text-base text-gray-500">
+                Hours: Mon-Fri, 9am-5pm EST
               </li>
             </ul>
           </div>
         </div>
-        <div className="mt-8 border-t pt-8 text-center text-sm text-gray-600">
-          © {new Date().getFullYear()} ArtAuction. All rights reserved.
+        <div className="mt-12 border-t border-gray-200 pt-8">
+          <p className="text-base text-gray-400 text-center">
+            © {new Date().getFullYear()} Art Auction. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>

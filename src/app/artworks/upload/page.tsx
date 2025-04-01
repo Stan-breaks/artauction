@@ -29,24 +29,23 @@ export default function UploadPage() {
         throw new Error('Please select an image');
       }
 
-      // Upload image to Cloudinary
+      // Upload image to our local endpoint
       const formData = new FormData();
       formData.append('file', image);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
 
-      const uploadResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', // Important: include credentials for auth
+      });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image');
+        const error = await uploadResponse.json();
+        throw new Error(error.error || 'Failed to upload image');
       }
 
-      const { secure_url } = await uploadResponse.json();
+      const uploadData = await uploadResponse.json();
+      const imageUrl = uploadData.url; // Get the URL from the response
 
       // Create artwork
       await fetchApi('/api/artworks', {
@@ -56,12 +55,13 @@ export default function UploadPage() {
           description,
           startingPrice: parseFloat(startingPrice),
           endDate: new Date(endDate).toISOString(),
-          imageUrl: secure_url,
+          imageUrl,
         }),
       });
 
       router.push('/artworks');
     } catch (error) {
+      console.error('Upload error:', error);
       setError(error instanceof Error ? error.message : 'Failed to upload artwork');
     } finally {
       setLoading(false);

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
+import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { connectToDatabase } from '@/lib/db';
+import { User } from '@/models/User';
+import { generateToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -12,71 +14,57 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { message: 'Email and password are required' },
         { status: 400 }
       );
     }
 
-    // Connect to MongoDB
-    const client = await MongoClient.connect(process.env.MONGODB_URI as string);
-    const db = client.db();
-    const users = db.collection('users');
+    await connectToDatabase();
 
-    // Find user
-    const user = await users.findOne({ email });
-
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      await client.close();
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { message: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-
-    if (!isValidPassword) {
-      await client.close();
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { message: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id.toString(), role: user.role },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
+    const token = generateToken({
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
 
-    await client.close();
+    const cookieStore = cookies();
+    cookieStore.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       user: {
-        id: user._id.toString(),
+        id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
       },
-      token,
     });
-
-    // Set cookie
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    });
-
-    return response;
   } catch (error) {
-    console.error('Error logging in:', error);
+    console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Failed to log in' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

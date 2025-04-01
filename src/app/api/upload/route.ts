@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { writeFile } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { authOptions } from '@/lib/auth';
+import { getUserFromToken } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    const user = await getUserFromToken(request);
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -35,8 +34,12 @@ export async function POST(request: Request) {
     const timestamp = Date.now();
     const filename = `${timestamp}-${Math.random().toString(36).substring(2)}.${ext}`;
     
+    // Ensure uploads directory exists
+    const uploadsDir = join(process.cwd(), 'public/uploads');
+    await mkdir(uploadsDir, { recursive: true });
+    
     // Save file to public directory
-    const path = join(process.cwd(), 'public/uploads', filename);
+    const path = join(uploadsDir, filename);
     await writeFile(path, buffer);
     
     // Return the public URL

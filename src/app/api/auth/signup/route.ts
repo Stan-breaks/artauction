@@ -1,31 +1,35 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
+import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { connectToDatabase } from '@/lib/db';
+import { User } from '@/models/User';
+import { generateToken } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name, role } = await request.json();
+    const { name, email, password, role } = await request.json();
 
-    if (!email || !password || !name) {
+    if (!name || !email || !password || !role) {
       return NextResponse.json(
-        { error: 'Name, email, and password are required' },
+        { message: 'All fields are required' },
         { status: 400 }
       );
     }
 
-    // Connect to MongoDB
-    const client = await MongoClient.connect(process.env.MONGODB_URI as string);
-    const db = client.db();
-    const users = db.collection('users');
-
-    // Check if user exists
-    const existingUser = await users.findOne({ email });
-
-    if (existingUser) {
-      await client.close();
+    if (!['USER', 'ARTIST'].includes(role)) {
       return NextResponse.json(
-        { error: 'Email already registered' },
+        { message: 'Invalid role specified' },
+        { status: 400 }
+      );
+    }
+
+    await connectToDatabase();
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return NextResponse.json(
+        { message: 'Email already registered' },
         { status: 400 }
       );
     }
@@ -33,37 +37,42 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
-    const result = await users.insertOne({
+    // Create new user
+    const user = await User.create({
+      name,
       email,
       password: hashedPassword,
-      name,
-      role: role || 'USER',
-      createdAt: new Date(),
+      role,
     });
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: result.insertedId.toString(), role: role || 'USER' },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
+    const token = generateToken({
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
 
-    await client.close();
+    const cookieStore = cookies();
+    cookieStore.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
 
     return NextResponse.json({
       user: {
-        id: result.insertedId.toString(),
-        name,
-        email,
-        role: role || 'USER',
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
       },
-      token,
     });
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error('Signup error:', error);
     return NextResponse.json(
-      { error: 'Failed to create account' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

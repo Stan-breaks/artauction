@@ -75,12 +75,37 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { title, description, startingPrice, endDate, imageUrl } = body;
 
+    // Validate required fields
+    if (!title || !description || !startingPrice || !endDate || !imageUrl) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Validate price
+    if (startingPrice <= 0) {
+      return NextResponse.json(
+        { error: 'Starting price must be greater than 0' },
+        { status: 400 }
+      );
+    }
+
+    // Validate end date
+    const endDateTime = new Date(endDate);
+    if (endDateTime <= new Date()) {
+      return NextResponse.json(
+        { error: 'End date must be in the future' },
+        { status: 400 }
+      );
+    }
+
     // Create artwork
     const artwork = await Artwork.create({
       title,
       description,
       startingPrice,
-      endDate,
+      endDate: endDateTime,
       imageUrl,
       artist: decoded.userId,
       currentPrice: startingPrice,
@@ -103,7 +128,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating artwork:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
