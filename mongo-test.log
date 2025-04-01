@@ -1,0 +1,6 @@
+
+> artauction@0.1.0 test-mongo
+> ts-node --project tsconfig.json src/lib/test-mongo.ts
+
+(node:45755) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

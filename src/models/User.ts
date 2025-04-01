@@ -4,7 +4,7 @@ export interface IUser {
   name: string
   email: string
   password: string
-  role: 'USER' | 'ARTIST'
+  role: 'USER' | 'ARTIST' | 'ADMIN'
   createdAt: Date
   updatedAt: Date
 }
@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['USER', 'ARTIST'],
+      enum: ['USER', 'ARTIST', 'ADMIN'],
       default: 'USER',
     },
   },

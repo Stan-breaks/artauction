@@ -1,42 +1,42 @@
-import { ObjectId } from 'mongodb';
-import clientPromise from './mongodb';
-import {
-  User,
-  Artwork,
-  Auction,
-  Bid,
-  Transaction,
-  Notification,
-  ArtistProfile,
-  AuctionWithDetails,
-} from './types';
 import mongoose from 'mongoose'
 
-const MONGODB_URI = process.env.MONGODB_URI
-
-if (!MONGODB_URI) {
+if (!process.env.MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable')
 }
 
-let cached = global.mongoose
+const MONGODB_URI = process.env.MONGODB_URI as string
 
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null }
+interface GlobalMongoose {
+  conn: typeof mongoose | null
+  promise: Promise<typeof mongoose> | null
 }
+
+declare global {
+  var mongoose: GlobalMongoose | undefined
+}
+
+let cached = global.mongoose || { conn: null, promise: null }
+global.mongoose = cached
 
 export async function connectToDatabase() {
   if (cached.conn) {
+    console.log('Using cached database connection')
     return cached.conn
   }
 
   if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    }
-
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose
-    })
+    console.log('Creating new database connection')
+    cached.promise = mongoose.connect(MONGODB_URI)
+      .then((mongoose) => {
+        console.log('Database connected successfully')
+        return mongoose
+      })
+      .catch((error) => {
+        console.error('Database connection error:', error)
+        throw error
+      })
+  } else {
+    console.log('Using existing database connection promise')
   }
 
   try {

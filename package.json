@@ -11,6 +11,8 @@
     "lint": "next lint",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "ts-node --project tsconfig.json src/lib/seed.ts",
+    "test-db": "ts-node --project tsconfig.json src/lib/test-db.ts",
+    "test-mongo": "ts-node --project tsconfig.json src/lib/test-mongo.ts",
     "init-db": "ts-node scripts/init-db.ts",
     "setup": "ts-node scripts/setup.ts"
   },
