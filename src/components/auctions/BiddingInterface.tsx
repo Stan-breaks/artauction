@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { formatKES } from '@/lib/utils';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'react-toastify';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 
 interface BiddingInterfaceProps {
   auctionId: string;
@@ -20,7 +22,7 @@ export default function BiddingInterface({
   minBidIncrement,
   endDate,
 }: BiddingInterfaceProps) {
-  const isAuthenticated = typeof document !== 'undefined' && document.cookie.includes('token');
+  const { data: session } = useSession();
   const [bidAmount, setBidAmount] = useState(currentPrice + minBidIncrement);
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState('');
@@ -84,7 +86,7 @@ export default function BiddingInterface({
   }, [endDate]);
 
   const handlePlaceBid = async () => {
-    if (!isAuthenticated) {
+    if (!session) {
       toast.error('Please sign in to place a bid');
       return;
     }
@@ -142,14 +144,14 @@ export default function BiddingInterface({
         </div>
         <Button
           onClick={handlePlaceBid}
-          disabled={isLoading || !isAuthenticated}
+          disabled={isLoading || !session}
           className="w-full"
         >
           {isLoading ? 'Placing Bid...' : 'Place Bid'}
         </Button>
-        {!isAuthenticated && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-            Please <a href="/auth/login" className="text-primary hover:underline">sign in</a> to place a bid
+        {!session && (
+          <p className="text-sm text-gray-600 mt-2">
+            Please <Link href="/auth/signin" className="text-primary hover:underline">sign in</Link> to place a bid
           </p>
         )}
       </div>

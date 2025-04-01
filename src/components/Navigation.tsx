@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
+import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 
 export function Navigation() {
-  const { user, loading, logout } = useAuth();
+  const { data: session, status } = useSession();
+  const loading = status === 'loading';
+  const user = session?.user;
 
   const commonLinks = [
     { href: '/', label: 'Home' },
@@ -32,7 +34,7 @@ export function Navigation() {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -107,11 +109,11 @@ export function Navigation() {
               </div>
             ) : (
               <div className="flex items-center space-x-4">
-                <Link href="/auth/login">
-                  <Button variant="outline">Sign in</Button>
+                <Link href="/auth/signin" className="text-gray-600 hover:text-gray-900">
+                  Sign In
                 </Link>
-                <Link href="/auth/signup">
-                  <Button>Sign up</Button>
+                <Link href="/auth/signup" className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90">
+                  Sign Up
                 </Link>
               </div>
             )}

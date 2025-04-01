@@ -4,12 +4,14 @@ import './globals.css';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Art Auction',
-  description: 'A platform for buying and selling art through auctions',
+  description: 'Online art auction platform for emerging artists',
 };
 
 export default function RootLayout({
@@ -25,6 +27,7 @@ export default function RootLayout({
             <Navigation />
             <main className="flex-grow">{children}</main>
             <Footer />
+            <ToastContainer />
           </div>
         </AuthProvider>
       </body>

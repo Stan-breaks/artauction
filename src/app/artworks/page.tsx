@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatKES } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { useSession } from 'next-auth/react';
 
 interface Artwork {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   imageUrl: string;
@@ -19,7 +19,7 @@ interface Artwork {
   endDate: string;
   status: string;
   artist: {
-    id: string;
+    _id: string;
     name: string;
   };
 }
@@ -29,7 +29,8 @@ export default function ArtworksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const { user } = useAuth();
+  const { data: session } = useSession();
+  const user = session?.user;
 
   useEffect(() => {
     const fetchArtworks = async () => {
@@ -94,7 +95,7 @@ export default function ArtworksPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {artworks.map((artwork) => (
-            <Card key={artwork.id} className="overflow-hidden">
+            <Card key={artwork._id} className="overflow-hidden">
               <div className="relative h-64">
                 <Image
                   src={artwork.imageUrl}
@@ -127,7 +128,7 @@ export default function ArtworksPage() {
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full">
-                  <Link href={`/artworks/${artwork.id}`}>View Details</Link>
+                  <Link href={`/artworks/${artwork._id}`}>View Details</Link>
                 </Button>
               </CardFooter>
             </Card>

@@ -1,44 +1,42 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
+import { Spinner } from '@/components/ui/spinner'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  roles?: string[]
+  requiredRole?: 'USER' | 'ARTIST' | 'ADMIN'
 }
 
-export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
-  const { user, loading } = useAuth()
+export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+  const { data: session, status } = useSession()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/login')
+    if (status === 'loading') return
+
+    if (!session) {
+      router.push('/auth/signin')
+      return
     }
-  }, [loading, user, router])
 
-  if (loading) {
+    if (requiredRole && session.user.role !== requiredRole) {
+      router.push('/')
+    }
+  }, [session, status, router, requiredRole])
+
+  if (status === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner />
       </div>
     )
   }
 
-  if (!user) {
+  if (!session || (requiredRole && session.user.role !== requiredRole)) {
     return null
-  }
-
-  if (roles && !roles.includes(user.role)) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg text-red-500">
-          You don't have permission to access this page
-        </div>
-      </div>
-    )
   }
 
   return <>{children}</>

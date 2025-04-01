@@ -4,6 +4,8 @@ import { verifyToken } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { Artwork } from '@/models/Artwork';
 import mongoose from 'mongoose';
+import { Bid } from '@/models/Bid';
+import { User } from '@/models/User';
 
 // GET /api/artworks/[id] - Get artwork by ID
 export async function GET(
@@ -13,7 +15,7 @@ export async function GET(
   try {
     await connectToDatabase();
 
-    const artwork = await Artwork.findById(params.id).populate('artist', 'name');
+    const artwork = await Artwork.findById(params.id).populate('artist');
     if (!artwork) {
       return NextResponse.json(
         { error: 'Artwork not found' },
@@ -21,22 +23,15 @@ export async function GET(
       );
     }
 
+    const bids = await Bid.find({ artwork: params.id })
+      .populate('bidder', 'name')
+      .sort({ createdAt: -1 });
+
     return NextResponse.json({
-      artwork: {
-        id: artwork._id,
-        title: artwork.title,
-        description: artwork.description,
-        startingPrice: artwork.startingPrice,
-        currentPrice: artwork.currentPrice,
-        endDate: artwork.endDate,
-        imageUrl: artwork.imageUrl,
-        artist: artwork.artist,
-        status: artwork.status,
-        createdAt: artwork.createdAt,
-        updatedAt: artwork.updatedAt,
-      },
+      artwork,
+      bids
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching artwork:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -177,6 +172,66 @@ export async function DELETE(
     return NextResponse.json({ message: 'Artwork deleted successfully' });
   } catch (error) {
     console.error('Error deleting artwork:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await connectToDatabase();
+
+    const artwork = await Artwork.findById(params.id);
+    if (!artwork) {
+      return NextResponse.json(
+        { error: 'Artwork not found' },
+        { status: 404 }
+      );
+    }
+
+    if (artwork.status !== 'ACTIVE') {
+      return NextResponse.json(
+        { error: 'This auction is not active' },
+        { status: 400 }
+      );
+    }
+
+    const { amount, bidderId } = await request.json();
+
+    if (!amount || !bidderId) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    if (amount <= artwork.currentPrice) {
+      return NextResponse.json(
+        { error: 'Bid must be higher than current price' },
+        { status: 400 }
+      );
+    }
+
+    const bid = await Bid.create({
+      artwork: params.id,
+      bidder: bidderId,
+      amount
+    });
+
+    // Update artwork's current price
+    artwork.currentPrice = amount;
+    await artwork.save();
+
+    const populatedBid = await bid.populate('bidder', 'name');
+
+    return NextResponse.json(populatedBid);
+  } catch (error: any) {
+    console.error('Error placing bid:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

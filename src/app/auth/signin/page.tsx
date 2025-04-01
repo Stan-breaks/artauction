@@ -1,129 +1,103 @@
 'use client';
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
-export default function SignInPage() {
+export default function SignIn() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+    setIsLoading(true);
+    setError('');
 
     try {
-      console.log("Attempting to sign in with:", email);
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include',
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to login');
+      if (result?.error) {
+        setError('Invalid email or password');
+      } else {
+        router.push('/');
+        router.refresh();
       }
-
-      console.log("Sign-in successful, redirecting to:", callbackUrl);
-      router.push(callbackUrl);
-      router.refresh();
     } catch (error) {
-      console.error("Sign-in exception:", error);
-      setError(error instanceof Error ? error.message : 'An error occurred. Please try again.');
+      setError('An error occurred. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
-      <Card className="w-full max-w-md border-2 border-[#078250] bg-white/90 backdrop-blur">
-        <CardHeader className="space-y-1">
-          <div className="mx-auto mb-4 relative w-32 h-32">
-            <Image
-              src="/images/logo.png"
-              alt="ArtAuction Logo"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
-          <CardTitle className="text-2xl text-center text-[#b65425]">Welcome to ArtAuction</CardTitle>
-          <CardDescription className="text-center">
-            Sign in to start bidding on unique Kenyan artworks
-          </CardDescription>
-          {searchParams.get('registered') === 'true' && (
-            <div className="bg-green-50 p-3 rounded-md text-green-700 text-sm mt-2">
-              Your account has been created! Please sign in.
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
+        <div>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="text-red-500 text-sm">{error}</div>
           )}
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="Enter your email"
+                autoComplete="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                placeholder="Enter your password"
+                autoComplete="current-password"
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1"
               />
             </div>
-            {error && (
-              <div className="text-sm text-red-600 dark:text-red-400">
-                {error}
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button
-              type="submit"
-              className="w-full bg-[#078250] hover:bg-[#078250]/90"
-              disabled={loading}
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-            <p className="text-sm text-center text-gray-600">
-              Don't have an account?{' '}
-              <Link
-                href="/auth/signup"
-                className="text-[#078250] hover:underline"
-              >
-                Sign up
-              </Link>
-            </p>
-          </CardFooter>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Signing in...' : 'Sign in'}
+          </Button>
+
+          <div className="text-sm text-center mt-4">
+            <span className="text-gray-600">Don't have an account? </span>
+            <Link href="/auth/signup" className="text-primary hover:text-primary/90">
+              Sign up
+            </Link>
+          </div>
         </form>
-      </Card>
+      </div>
     </div>
   );
 } 
