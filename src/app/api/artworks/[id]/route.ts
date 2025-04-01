@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import clientPromise from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
-import { authOptions } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth';
+import { connectToDatabase } from '@/lib/db';
+import { Artwork } from '@/models/Artwork';
+import mongoose from 'mongoose';
 
 // GET /api/artworks/[id] - Get artwork by ID
 export async function GET(
@@ -10,87 +11,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const client = await clientPromise;
-    const db = client.db();
+    await connectToDatabase();
 
-    const artwork = await db
-      .collection('artworks')
-      .aggregate([
-        { $match: { _id: new ObjectId(params.id) } },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'artistId',
-            foreignField: '_id',
-            as: 'artist',
-          },
-        },
-        { $unwind: '$artist' },
-        {
-          $lookup: {
-            from: 'auctions',
-            localField: '_id',
-            foreignField: 'artworkId',
-            as: 'auctions',
-          },
-        },
-        {
-          $project: {
-            'artist.password': 0,
-          },
-        },
-      ])
-      .toArray();
-
-    if (!artwork[0]) {
-      return NextResponse.json(
-        { error: 'Artwork not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(artwork[0]);
-  } catch (error) {
-    console.error('Error fetching artwork:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH /api/artworks/[id] - Update artwork
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const client = await clientPromise;
-    const db = client.db();
-
-    const user = await db.collection('users').findOne({
-      email: session.user.email,
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    const artwork = await db.collection('artworks').findOne({
-      _id: new ObjectId(params.id),
-    });
-
+    const artwork = await Artwork.findById(params.id).populate('artist', 'name');
     if (!artwork) {
       return NextResponse.json(
         { error: 'Artwork not found' },
@@ -98,43 +21,107 @@ export async function PATCH(
       );
     }
 
-    if (
-      user.role !== 'ADMIN' &&
-      artwork.artistId.toString() !== user._id.toString()
-    ) {
+    return NextResponse.json({
+      artwork: {
+        id: artwork._id,
+        title: artwork.title,
+        description: artwork.description,
+        startingPrice: artwork.startingPrice,
+        currentPrice: artwork.currentPrice,
+        endDate: artwork.endDate,
+        imageUrl: artwork.imageUrl,
+        artist: artwork.artist,
+        status: artwork.status,
+        createdAt: artwork.createdAt,
+        updatedAt: artwork.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching artwork:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/artworks/[id] - Update artwork
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Get the token from cookies
+    const token = cookies().get('token')?.value;
+    if (!token) {
       return NextResponse.json(
-        { error: 'Forbidden' },
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    // Verify the token
+    const decoded = verifyToken(token);
+    if (decoded.role !== 'ARTIST') {
+      return NextResponse.json(
+        { error: 'Only artists can update artworks' },
         { status: 403 }
       );
     }
 
-    const data = await request.json();
-    const updateData = {
-      ...data,
-      updatedAt: new Date(),
-    };
+    // Connect to database
+    await connectToDatabase();
 
-    const result = await db.collection('artworks').updateOne(
-      { _id: new ObjectId(params.id) },
-      { $set: updateData }
-    );
-
-    if (result.modifiedCount === 0) {
+    // Find the artwork
+    const artwork = await Artwork.findById(params.id);
+    if (!artwork) {
       return NextResponse.json(
-        { error: 'No changes made' },
-        { status: 400 }
+        { error: 'Artwork not found' },
+        { status: 404 }
       );
     }
 
-    const updatedArtwork = await db
-      .collection('artworks')
-      .findOne({ _id: new ObjectId(params.id) });
+    // Check if the user is the artist
+    if (artwork.artist.toString() !== decoded.userId) {
+      return NextResponse.json(
+        { error: 'You can only update your own artworks' },
+        { status: 403 }
+      );
+    }
 
-    return NextResponse.json(updatedArtwork);
+    // Get request body
+    const body = await request.json();
+    const { title, description, startingPrice, endDate, imageUrl } = body;
+
+    // Update artwork
+    artwork.title = title;
+    artwork.description = description;
+    artwork.startingPrice = startingPrice;
+    artwork.currentPrice = startingPrice;
+    artwork.endDate = endDate;
+    artwork.imageUrl = imageUrl;
+
+    await artwork.save();
+
+    return NextResponse.json({
+      artwork: {
+        id: artwork._id,
+        title: artwork.title,
+        description: artwork.description,
+        startingPrice: artwork.startingPrice,
+        currentPrice: artwork.currentPrice,
+        endDate: artwork.endDate,
+        imageUrl: artwork.imageUrl,
+        artist: artwork.artist,
+        status: artwork.status,
+        createdAt: artwork.createdAt,
+        updatedAt: artwork.updatedAt,
+      },
+    });
   } catch (error) {
     console.error('Error updating artwork:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -146,32 +133,29 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    // Get the token from cookies
+    const token = cookies().get('token')?.value;
+    if (!token) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db();
-
-    const user = await db.collection('users').findOne({
-      email: session.user.email,
-    });
-
-    if (!user) {
+    // Verify the token
+    const decoded = verifyToken(token);
+    if (decoded.role !== 'ARTIST') {
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        { error: 'Only artists can delete artworks' },
+        { status: 403 }
       );
     }
 
-    const artwork = await db.collection('artworks').findOne({
-      _id: new ObjectId(params.id),
-    });
+    // Connect to database
+    await connectToDatabase();
 
+    // Find the artwork
+    const artwork = await Artwork.findById(params.id);
     if (!artwork) {
       return NextResponse.json(
         { error: 'Artwork not found' },
@@ -179,38 +163,22 @@ export async function DELETE(
       );
     }
 
-    if (
-      user.role !== 'ADMIN' &&
-      artwork.artistId.toString() !== user._id.toString()
-    ) {
+    // Check if the user is the artist
+    if (artwork.artist.toString() !== decoded.userId) {
       return NextResponse.json(
-        { error: 'Forbidden' },
+        { error: 'You can only delete your own artworks' },
         { status: 403 }
       );
     }
 
-    // Check if artwork is in any active auctions
-    const activeAuction = await db.collection('auctions').findOne({
-      artworkId: new ObjectId(params.id),
-      status: 'ACTIVE',
-    });
+    // Delete artwork
+    await artwork.deleteOne();
 
-    if (activeAuction) {
-      return NextResponse.json(
-        { error: 'Cannot delete artwork with active auction' },
-        { status: 400 }
-      );
-    }
-
-    await db.collection('artworks').deleteOne({
-      _id: new ObjectId(params.id),
-    });
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ message: 'Artwork deleted successfully' });
   } catch (error) {
     console.error('Error deleting artwork:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

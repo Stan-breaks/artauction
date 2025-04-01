@@ -1,58 +1,47 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import clientPromise from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
-import { authOptions } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth';
+import { connectToDatabase } from '@/lib/db';
+import { Artwork } from '@/models/Artwork';
 
 // GET /api/artworks - Get all artworks or filter by query
 export async function GET(request: Request) {
   try {
+    await connectToDatabase();
+
     const { searchParams } = new URL(request.url);
-    const artistId = searchParams.get('artistId');
-    const query = searchParams.get('query');
-    const medium = searchParams.get('medium');
-    const status = searchParams.get('status');
+    const query = searchParams.get('q') || '';
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '12');
 
-    const client = await clientPromise;
-    const db = client.db();
-
-    let filter: any = {};
-    if (artistId) filter.artistId = new ObjectId(artistId);
-    if (medium) filter.medium = medium;
-    if (status) filter.status = status;
-    if (query) {
-      filter.$or = [
+    const artworks = await Artwork.find({
+      $or: [
         { title: { $regex: query, $options: 'i' } },
         { description: { $regex: query, $options: 'i' } },
-      ];
-    }
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('artist', 'name');
 
-    const artworks = await db
-      .collection('artworks')
-      .aggregate([
-        { $match: filter },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'artistId',
-            foreignField: '_id',
-            as: 'artist',
-          },
-        },
-        { $unwind: '$artist' },
-        {
-          $project: {
-            'artist.password': 0,
-          },
-        },
-      ])
-      .toArray();
+    const total = await Artwork.countDocuments({
+      $or: [
+        { title: { $regex: query, $options: 'i' } },
+        { description: { $regex: query, $options: 'i' } },
+      ],
+    });
 
-    return NextResponse.json(artworks);
+    return NextResponse.json({
+      artworks,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error('Error fetching artworks:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -61,47 +50,60 @@ export async function GET(request: Request) {
 // POST /api/artworks - Create a new artwork
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    // Get the token from cookies
+    const token = cookies().get('token')?.value;
+    if (!token) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db();
-
-    const user = await db.collection('users').findOne({
-      email: session.user.email,
-    });
-
-    if (!user || user.role !== 'ARTIST') {
+    // Verify the token
+    const decoded = verifyToken(token);
+    if (decoded.role !== 'ARTIST') {
       return NextResponse.json(
-        { error: 'Only artists can create artworks' },
+        { error: 'Only artists can upload artworks' },
         { status: 403 }
       );
     }
 
-    const data = await request.json();
-    const artwork = {
-      ...data,
-      artistId: new ObjectId(user._id),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      status: 'DRAFT',
-    };
+    // Connect to database
+    await connectToDatabase();
 
-    const result = await db.collection('artworks').insertOne(artwork);
-    const createdArtwork = await db
-      .collection('artworks')
-      .findOne({ _id: result.insertedId });
+    // Get request body
+    const body = await request.json();
+    const { title, description, startingPrice, endDate, imageUrl } = body;
 
-    return NextResponse.json(createdArtwork);
+    // Create artwork
+    const artwork = await Artwork.create({
+      title,
+      description,
+      startingPrice,
+      endDate,
+      imageUrl,
+      artist: decoded.userId,
+      currentPrice: startingPrice,
+      status: 'ACTIVE',
+    });
+
+    return NextResponse.json({
+      artwork: {
+        id: artwork._id,
+        title: artwork.title,
+        description: artwork.description,
+        startingPrice: artwork.startingPrice,
+        currentPrice: artwork.currentPrice,
+        endDate: artwork.endDate,
+        imageUrl: artwork.imageUrl,
+        artist: artwork.artist,
+        status: artwork.status,
+      },
+    });
   } catch (error) {
     console.error('Error creating artwork:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

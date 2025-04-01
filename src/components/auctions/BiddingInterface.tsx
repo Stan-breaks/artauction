@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatKES } from '@/lib/utils';
@@ -21,7 +20,7 @@ export default function BiddingInterface({
   minBidIncrement,
   endDate,
 }: BiddingInterfaceProps) {
-  const { data: session } = useSession();
+  const isAuthenticated = typeof document !== 'undefined' && document.cookie.includes('token');
   const [bidAmount, setBidAmount] = useState(currentPrice + minBidIncrement);
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState('');
@@ -85,7 +84,7 @@ export default function BiddingInterface({
   }, [endDate]);
 
   const handlePlaceBid = async () => {
-    if (!session?.user) {
+    if (!isAuthenticated) {
       toast.error('Please sign in to place a bid');
       return;
     }
@@ -100,10 +99,8 @@ export default function BiddingInterface({
       socketRef.current?.emit('new-bid', {
         auctionId,
         amount: bidAmount,
-        userId: session.user.id,
       });
     } catch (error) {
-      console.error('Error placing bid:', error);
       toast.error('Failed to place bid');
     } finally {
       setIsLoading(false);
@@ -111,59 +108,48 @@ export default function BiddingInterface({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="mb-6">
-        <div className="flex justify-between mb-2">
-          <span className="text-gray-600">Current Bid:</span>
-          <span className="text-[#078250] font-bold text-xl">
-            {formatKES(currentPrice)}
-          </span>
-        </div>
-        <div className="flex justify-between mb-4">
-          <span className="text-gray-600">Minimum Bid:</span>
-          <span className="text-gray-700">
-            {formatKES(currentPrice + minBidIncrement)}
-          </span>
-        </div>
-        
-        <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md mb-6">
-          <div className="flex items-center">
-            <div className="w-5 h-5 mr-2 text-[#078250]">⏰</div>
-            <div>
-              <div className="text-sm text-gray-600">Auction ends in:</div>
-              <div className="font-semibold">{timeLeft}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">Place Your Bid</h3>
       <div className="space-y-4">
         <div>
-          <label htmlFor="bidAmount" className="block text-sm font-medium text-gray-700 mb-1">
-            Your Bid Amount (KES)
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Current Price
+          </label>
+          <p className="text-2xl font-bold text-primary">{formatKES(currentPrice)}</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Minimum Bid Increment
+          </label>
+          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+            {formatKES(minBidIncrement)}
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Your Bid Amount
           </label>
           <Input
-            id="bidAmount"
             type="number"
+            min={currentPrice + minBidIncrement}
             value={bidAmount}
             onChange={(e) => setBidAmount(Number(e.target.value))}
-            min={currentPrice + minBidIncrement}
-            step={minBidIncrement}
-            className="w-full"
+            className="mt-1"
           />
         </div>
-
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Time left: {timeLeft}
+        </div>
         <Button
           onClick={handlePlaceBid}
-          disabled={isLoading || new Date() > endDate}
-          className="w-full bg-[#078250] hover:bg-[#078250]/90"
+          disabled={isLoading || !isAuthenticated}
+          className="w-full"
         >
           {isLoading ? 'Placing Bid...' : 'Place Bid'}
         </Button>
-
-        {new Date() > endDate && (
-          <p className="text-red-500 text-sm text-center">
-            This auction has ended
+        {!isAuthenticated && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+            Please <a href="/auth/login" className="text-primary hover:underline">sign in</a> to place a bid
           </p>
         )}
       </div>
