@@ -203,34 +203,32 @@ export async function POST(
 
     const { amount, bidderId } = await request.json();
 
-    if (!amount || !bidderId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
+    // Validate bid amount
     if (amount <= artwork.currentPrice) {
       return NextResponse.json(
-        { error: 'Bid must be higher than current price' },
+        { error: 'Bid amount must be higher than current price' },
         { status: 400 }
       );
     }
 
+    // Create new bid
     const bid = await Bid.create({
-      artwork: params.id,
+      artwork: artwork._id,
       bidder: bidderId,
-      amount
+      amount,
     });
 
-    // Update artwork's current price
+    // Update artwork current price
     artwork.currentPrice = amount;
     await artwork.save();
 
-    const populatedBid = await bid.populate('bidder', 'name');
+    // Populate bidder information
+    const populatedBid = await Bid.findById(bid._id)
+      .populate('bidder', 'name')
+      .lean();
 
     return NextResponse.json(populatedBid);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error placing bid:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
