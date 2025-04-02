@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { formatKES } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
+import { io, Socket } from 'socket.io-client';
 
 interface Bid {
   _id: string;
@@ -28,6 +29,7 @@ interface Artwork {
   artist: {
     _id: string;
     name: string;
+    email: string;
   };
   status: 'DRAFT' | 'ACTIVE' | 'ENDED' | 'SOLD';
 }
@@ -61,6 +63,26 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
 
     fetchArtwork();
   }, [params.id]);
+
+  // Check if auction has ended based on end date
+  useEffect(() => {
+    if (!artwork) return;
+    
+    const checkAuctionStatus = () => {
+      const now = new Date();
+      const endDate = new Date(artwork.endDate);
+      
+      if (artwork.status === 'ACTIVE' && now > endDate) {
+        // Show notification that auction has technically ended
+        toast.info("This auction's end date has passed but hasn't been officially closed yet.");
+      }
+    };
+    
+    checkAuctionStatus();
+    const intervalId = setInterval(checkAuctionStatus, 60000); // Check every minute
+    
+    return () => clearInterval(intervalId);
+  }, [artwork]);
 
   const handleBid = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,7 +129,7 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
   }
 
   const minBidAmount = artwork.currentPrice + 1000; // Minimum bid increment of 1000 KES
-
+  const isAuctionExpired = new Date() > new Date(artwork.endDate);
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -134,38 +156,72 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
             </p>
             <p className="text-sm text-gray-500">
               Auction ends on {new Date(artwork.endDate).toLocaleDateString()}
+              {isAuctionExpired && artwork.status === 'ACTIVE' && (
+                <span className="text-red-500 ml-2 font-medium">(End date has passed)</span>
+              )}
             </p>
           </div>
 
           {/* Bidding Form */}
-          {artwork.status === 'ACTIVE' && (
-            <form onSubmit={handleBid} className="space-y-4">
-              <div>
-                <label htmlFor="bidAmount" className="block text-sm font-medium mb-2">
-                  Your Bid (KES)
-                </label>
-                <input
-                  type="number"
-                  id="bidAmount"
-                  value={bidAmount}
-                  onChange={(e) => setBidAmount(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg"
-                  min={minBidAmount}
-                  step="1000"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Minimum bid: {formatKES(minBidAmount)}
-                </p>
-              </div>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isBidding || !session?.user}
-              >
-                {isBidding ? 'Placing Bid...' : session?.user ? 'Place Bid' : 'Sign in to Bid'}
-              </Button>
-            </form>
+          {artwork.status === 'ACTIVE' && !isAuctionExpired && (
+            <>
+              <form onSubmit={handleBid} className="space-y-4">
+                <div>
+                  <label htmlFor="bidAmount" className="block text-sm font-medium mb-2">
+                    Your Bid (KES)
+                  </label>
+                  <input
+                    type="number"
+                    id="bidAmount"
+                    value={bidAmount}
+                    onChange={(e) => setBidAmount(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg"
+                    min={minBidAmount}
+                    step="1000"
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Minimum bid: {formatKES(minBidAmount)}
+                  </p>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isBidding || !session?.user}
+                >
+                  {isBidding ? 'Placing Bid...' : session?.user ? 'Place Bid' : 'Sign in to Bid'}
+                </Button>
+              </form>
+
+              {/* End Auction Now - Important Button Button for Artists */}
+              {session?.user?.email === artwork.artist.email && (
+                <div className="mt-4">
+                  <Button
+                    variant="destructive"
+                    className="w-full text-lg font-bold"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/artworks/${params.id}/end-auction`, {
+                          method: 'POST',
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error('Failed to end auction');
+                        }
+
+                        const data = await response.json();
+                        setArtwork(prev => prev ? { ...prev, status: data.artwork.status } : null);
+                        toast.success('Auction ended successfully');
+                      } catch (error) {
+                        toast.error('Failed to end auction');
+                      }
+                    }}
+                  >
+                    📢 END AUCTION NOW
+                  </Button>
+                </div>
+              )}
+            </>
           )}
 
           {artwork.status !== 'ACTIVE' && (
@@ -173,6 +229,41 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
               <p className="text-yellow-800">
                 This auction is {artwork.status.toLowerCase()}
               </p>
+            </div>
+          )}
+
+          {artwork.status === 'ACTIVE' && isAuctionExpired && (
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <p className="text-yellow-800">
+                This auction's end date has passed. Bidding is disabled until the artist officially ends the auction.
+              </p>
+              {true && (
+                <div className="mt-4">
+                  <Button
+                    variant="destructive"
+                    className="w-full text-lg font-bold"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/artworks/${params.id}/end-auction`, {
+                          method: 'POST',
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error('Failed to end auction');
+                        }
+
+                        const data = await response.json();
+                        setArtwork(prev => prev ? { ...prev, status: data.artwork.status } : null);
+                        toast.success('Auction ended successfully');
+                      } catch (error) {
+                        toast.error('Failed to end auction');
+                      }
+                    }}
+                  >
+                    📢 END AUCTION NOW
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
