@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
-import { Artwork } from '@/models/Artwork';
-import mongoose from 'mongoose';
-import { Bid } from '@/models/Bid';
 import { User } from '@/models/User';
+import { Artwork } from '@/models/Artwork';
+import { Bid } from '@/models/Bid';
+import mongoose from 'mongoose';
+import { getServerSession } from 'next-auth/next';
 
 // GET /api/artworks/[id] - Get artwork by ID
 export async function GET(
@@ -185,6 +186,16 @@ export async function POST(
 ) {
   try {
     await connectToDatabase();
+    
+    // Get user from session
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'You must be logged in to place a bid' },
+        { status: 401 }
+      );
+    }
 
     const artwork = await Artwork.findById(params.id);
     if (!artwork) {
@@ -201,9 +212,16 @@ export async function POST(
       );
     }
 
-    const { amount, bidderId } = await request.json();
+    const { amount } = await request.json();
 
     // Validate bid amount
+    if (!amount) {
+      return NextResponse.json(
+        { error: 'Bid amount is required' },
+        { status: 400 }
+      );
+    }
+
     if (amount <= artwork.currentPrice) {
       return NextResponse.json(
         { error: 'Bid amount must be higher than current price' },
@@ -211,10 +229,19 @@ export async function POST(
       );
     }
 
+    // Find user by email
+    const user = await User.findOne({ email: session.user.email });
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
     // Create new bid
     const bid = await Bid.create({
       artwork: artwork._id,
-      bidder: bidderId,
+      bidder: user._id,
       amount,
     });
 
