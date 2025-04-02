@@ -31,6 +31,14 @@ export async function POST(
       );
     }
 
+    // Check if auction end date has passed
+    if (new Date(artwork.endDate) < new Date()) {
+      return NextResponse.json(
+        { error: "This auction has passed its end date. No more bids can be accepted." },
+        { status: 400 }
+      );
+    }
+
     if (artwork.status !== 'ACTIVE') {
       return NextResponse.json(
         { error: 'This auction is not active' },
