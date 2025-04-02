@@ -1,119 +1,65 @@
 'use client';
 
 import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 
 export function Navigation() {
-  const { data: session, status } = useSession();
-  const loading = status === 'loading';
-  const user = session?.user;
-
-  const commonLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/artworks', label: 'Browse Artworks' },
-  ];
-
-  const artistLinks = [
-    { href: '/artworks/upload', label: 'Upload Artwork' },
-    { href: '/artworks/my-artworks', label: 'My Artworks' },
-    { href: '/artist/dashboard', label: 'Artist Dashboard' },
-  ];
-
-  const userLinks = [
-    { href: '/my-bids', label: 'My Bids' },
-    { href: '/watchlist', label: 'Watchlist' },
-  ];
-
-  const adminLinks = [
-    { href: '/admin/dashboard', label: 'Admin Dashboard' },
-    { href: '/admin/users', label: 'Manage Users' },
-    { href: '/admin/artworks', label: 'Manage Artworks' },
-    { href: '/admin/reports', label: 'Reports' },
-  ];
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
+  const { data: session } = useSession();
 
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className="bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-xl font-bold text-indigo-600">
+              <Link href="/" className="text-xl font-bold text-gray-900">
                 Art Auction
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {commonLinks.map((link) => (
+              <Link
+                href="/"
+                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+              >
+                Home
+              </Link>
+              <Link
+                href="/artworks"
+                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+              >
+                Browse Artworks
+              </Link>
+              {session?.user && (
                 <Link
-                  key={link.href}
-                  href={link.href}
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900"
+                  href="/my-artworks"
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                 >
-                  {link.label}
+                  My Artworks
                 </Link>
-              ))}
-              {user?.role === 'ARTIST' &&
-                artistLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              {(user?.role === 'USER' || user?.role === 'ARTIST') &&
-                userLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              {user?.role === 'ADMIN' &&
-                adminLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+              )}
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {loading ? (
-              <div className="h-10 w-10 animate-spin rounded-full border-t-2 border-indigo-500" />
-            ) : user ? (
+            {session?.user ? (
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-700">
-                  Welcome, {user.name}
+                  {session.user.email}
                 </span>
                 <Button
                   variant="outline"
-                  onClick={handleLogout}
+                  onClick={() => window.location.href = '/api/auth/signout'}
                 >
-                  Sign out
+                  Sign Out
                 </Button>
               </div>
             ) : (
               <div className="flex items-center space-x-4">
-                <Link href="/auth/signin" className="text-gray-600 hover:text-gray-900">
-                  Sign In
+                <Link href="/login">
+                  <Button variant="outline">Sign In</Button>
                 </Link>
-                <Link href="/auth/signup" className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90">
-                  Sign Up
+                <Link href="/register">
+                  <Button>Sign Up</Button>
                 </Link>
               </div>
             )}
