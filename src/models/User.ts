@@ -35,4 +35,7 @@ const userSchema = new mongoose.Schema<IUser>(
   }
 )
 
-export const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema) 
+// Create the model only if it doesn't exist
+const User = mongoose.models?.User || mongoose.model<IUser>('User', userSchema)
+
+export { User } 
