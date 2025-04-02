@@ -71,14 +71,13 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
 
     setIsBidding(true);
     try {
-      const response = await fetch(`/api/artworks/${params.id}`, {
+      const response = await fetch(`/api/artworks/${params.id}/bid`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: Number(bidAmount),
-          bidderId: session.user.id,
+          amount: Number(bidAmount)
         }),
       });
 
