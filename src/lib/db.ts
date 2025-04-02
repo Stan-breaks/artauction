@@ -26,8 +26,12 @@ export async function connectToDatabase() {
 
   if (!cached.promise) {
     console.log('Creating new database connection')
-    cached.promise = mongoose.connect(MONGODB_URI)
-      .then((mongoose) => {
+    const opts = {
+      bufferCommands: false,
+    }
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts)
+      .then(() => {
         console.log('Database connected successfully')
         return mongoose
       })
@@ -47,6 +51,15 @@ export async function connectToDatabase() {
   }
 
   return cached.conn
+}
+
+// Initialize models after database connection
+export async function initializeModels() {
+  await connectToDatabase()
+  // Import models here to ensure they're initialized after connection
+  await import('@/models/User')
+  await import('@/models/Artwork')
+  await import('@/models/Bid')
 }
 
 // Augment the NodeJS global type
