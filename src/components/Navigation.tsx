@@ -55,10 +55,10 @@ export function Navigation() {
               </div>
             ) : (
               <div className="flex items-center space-x-4">
-                <Link href="/login">
+                <Link href="/auth/signin">
                   <Button variant="outline">Sign In</Button>
                 </Link>
-                <Link href="/register">
+                <Link href="/auth/signup">
                   <Button>Sign Up</Button>
                 </Link>
               </div>
