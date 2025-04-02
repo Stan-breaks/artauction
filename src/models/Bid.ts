@@ -31,4 +31,7 @@ const bidSchema = new mongoose.Schema<IBid>(
   }
 )
 
-export const Bid = mongoose.models.Bid || mongoose.model<IBid>('Bid', bidSchema) 
+// Create the model only if it doesn't exist
+const Bid = mongoose.models?.Bid || mongoose.model<IBid>('Bid', bidSchema)
+
+export { Bid } 
