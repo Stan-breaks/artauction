@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 
 export interface IArtwork {
+  _id: mongoose.Types.ObjectId
   title: string
   description: string
   startingPrice: number
@@ -57,4 +58,7 @@ const artworkSchema = new mongoose.Schema<IArtwork>(
   }
 )
 
-export const Artwork = mongoose.models.Artwork || mongoose.model<IArtwork>('Artwork', artworkSchema) 
+// Create the model only if it doesn't exist
+const Artwork = mongoose.models?.Artwork || mongoose.model<IArtwork>('Artwork', artworkSchema)
+
+export { Artwork } 
