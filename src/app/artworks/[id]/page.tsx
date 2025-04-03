@@ -235,7 +235,9 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
               {/* Payment Button for Auction Winner */}
               {artwork.status === 'SOLD' && 
                bids.length > 0 && 
-               bids[0].bidder?.name === session?.user?.name && (
+               (bids[0].bidder?._id === session?.user?.id || 
+                bids[0].bidder?.name === session?.user?.name || 
+                bids[0].bidder?.email === session?.user?.email) && (
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold mb-3">Complete Your Purchase</h3>
                   <p className="text-sm text-gray-700 mb-3">
