@@ -7,6 +7,7 @@ import { formatKES } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
 import { io, Socket } from 'socket.io-client';
+import Link from 'next/link';
 
 interface Bid {
   _id: string;
@@ -14,6 +15,7 @@ interface Bid {
   bidder: {
     _id: string;
     name: string;
+    email: string;
   };
   createdAt: string;
 }
@@ -229,6 +231,58 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
               <p className="text-yellow-800">
                 This auction is {artwork.status.toLowerCase()}
               </p>
+              
+              {/* Payment Button for Auction Winner */}
+              {artwork.status === 'SOLD' && 
+               bids.length > 0 && 
+               bids[0].bidder?.email === session?.user?.email && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold mb-3">Complete Your Purchase</h3>
+                  <p className="text-sm text-gray-700 mb-3">
+                    Congratulations! You won this auction. Click below to complete your purchase.
+                  </p>
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    onClick={async () => {
+                      try {
+                        // Create Stripe checkout session
+                        const response = await fetch('/api/payment', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            auctionId: params.id,
+                          }),
+                        });
+
+                        if (!response.ok) {
+                          const error = await response.json();
+                          throw new Error(error.error || 'Failed to create payment session');
+                        }
+
+                        const { sessionId } = await response.json();
+
+                        // Redirect to Stripe checkout
+                        const stripe = await import('@stripe/stripe-js').then(module => module.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!));
+                        if (!stripe) {
+                          throw new Error('Failed to load Stripe');
+                        }
+
+                        const { error } = await stripe.redirectToCheckout({ sessionId });
+                        if (error) {
+                          throw error;
+                        }
+                      } catch (error: any) {
+                        console.error('Payment error:', error);
+                        toast.error(error.message || 'Failed to process payment');
+                      }
+                    }}
+                  >
+                    Complete Purchase
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
