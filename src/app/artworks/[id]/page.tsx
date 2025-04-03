@@ -131,7 +131,7 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
   }
 
   const minBidAmount = artwork.currentPrice + 1000; // Minimum bid increment of 1000 KES
-  const isAuctionExpired = new Date() > new Date(artwork.endDate);
+  const isAuctionExpired = new Date() > new Date(artwork.endDate)
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -235,7 +235,7 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
               {/* Payment Button for Auction Winner */}
               {artwork.status === 'SOLD' && 
                bids.length > 0 && 
-               bids[0].bidder?.email === session?.user?.email && (
+               bids[0].bidder?.name === session?.user?.name && (
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold mb-3">Complete Your Purchase</h3>
                   <p className="text-sm text-gray-700 mb-3">
@@ -252,7 +252,7 @@ export default function ArtworkPage({ params }: { params: { id: string } }) {
                             'Content-Type': 'application/json',
                           },
                           body: JSON.stringify({
-                            auctionId: params.id,
+                            artworkId: params.id
                           }),
                         });
 
